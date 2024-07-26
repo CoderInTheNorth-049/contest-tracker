@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema({
         unique: true
     },
 
+    password: {
+        type: String,
+        required: true
+    },
+
     contests: [{
         contestId: Number,
         rank: Number,
@@ -22,6 +27,7 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     }
+
 });
 
 const contestAverageRatingSchema = new mongoose.Schema({

@@ -2,6 +2,7 @@ const express = require("express");
 const zod = require("zod");
 const axios = require("axios");
 const { User, ContestRating } = require("../db");
+const { authmidddleware } = require("../middleware");
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const contestSchema = zod.object({
   contestId: zod.number()
 });
 
-router.post("/add", async (req, res) => {
+router.post("/add", authmidddleware, async (req, res) => {
   try {
     const validatedData = contestSchema.safeParse(req.body);
     if (!validatedData.success) {
@@ -39,7 +40,13 @@ router.post("/add", async (req, res) => {
     // Fetch both official and unofficial standings
     const contestUnofficialData = await axios.get(`https://codeforces.com/api/contest.standings?contestId=${contestId}&showUnofficial=true`);
     const contestOfficialData = await axios.get(`https://codeforces.com/api/contest.standings?contestId=${contestId}`);
-
+    
+    // invalid contesID
+    if(contestOfficialData.data.status === "FAILED"){
+      return res.status(400).json({
+        message: "Contest not found"
+      })
+    }
     const unofficialRank = contestUnofficialData.data.result.rows.find(row => row.party.members.some(member => member.handle === codeforcesId));
     if (!unofficialRank) {
       return res.status(404).json({
