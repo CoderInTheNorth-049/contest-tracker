@@ -52,6 +52,10 @@ router.post("/add", authmidddleware, async (req, res) => {
       return res.status(404).json({
         message: "User not found in contest"
       });
+    }else if(unofficialRank.party.participantType !== "VIRTUAL"){
+      return res.status(401).json({
+        message: "User wasn't a virtual participant"
+      })
     }
 
     const officialRanks = contestUnofficialData.data.result.rows.filter(row => row.party.participantType === 'CONTESTANT');
