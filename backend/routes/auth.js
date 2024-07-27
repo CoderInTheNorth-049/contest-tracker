@@ -4,11 +4,20 @@ const { JWT_SECRET } = require('../config');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const router = express.Router();
+const axios = require('axios');
 
 
 router.post('/connect', async (req, res) => {
 
   const { codeforcesId, password } = req.body;
+
+  try{
+    const userData = await axios.get(`https://codeforces.com/api/user.info?handles=${codeforcesId}`);
+  }catch(err){
+    return res.status(401).json({
+      message: "Invalid Codeforces ID"
+    })
+  }
 
   try {
     let user = await User.findOne({ codeforcesId });
@@ -17,7 +26,7 @@ router.post('/connect', async (req, res) => {
       const passwordIsValid = await bcrypt.compare(password, user.password);
       
       if(passwordIsValid){
-        const token = jwt.sign({userId:_id}, JWT_SECRET);
+        const token = jwt.sign({userId:user._id}, JWT_SECRET);
         return res.status(200).json({
           message: 'Signin successfully',
           token: token
@@ -28,13 +37,7 @@ router.post('/connect', async (req, res) => {
         })
       }
     }
-    // check username is Codeforces handle
-    const userData = await axios.get(`https://codeforces.com/api/user.info?handles=${codeforcesId}`);
-    if(userData.data.status === "FAILED"){
-      return res.status(401).json({
-        message: "Invalid Codeforces ID"
-      })
-    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
     user = new User({ codeforcesId, password: hashedPassword, contests: [], highestRating: 0 });

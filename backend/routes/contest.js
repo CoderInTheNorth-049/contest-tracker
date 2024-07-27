@@ -12,6 +12,15 @@ const contestSchema = zod.object({
 });
 
 router.post("/add", authmidddleware, async (req, res) => {
+  const { codeforcesId, contestId } = req.body;
+  try{
+    const contestOfficialData = await axios.get(`https://codeforces.com/api/contest.standings?contestId=${contestId}&count=1`);
+  }catch(err){
+    return res.status(400).json({
+      message: "Contest not found"
+    })
+  }
+
   try {
     const validatedData = contestSchema.safeParse(req.body);
     if (!validatedData.success) {
@@ -20,7 +29,7 @@ router.post("/add", authmidddleware, async (req, res) => {
         errors: validatedData.error.errors
       });
     }
-    const { codeforcesId, contestId } = req.body;
+    
 
     const user = await User.findOne({ codeforcesId });
     if (!user) {
@@ -41,12 +50,6 @@ router.post("/add", authmidddleware, async (req, res) => {
     const contestUnofficialData = await axios.get(`https://codeforces.com/api/contest.standings?contestId=${contestId}&showUnofficial=true`);
     const contestOfficialData = await axios.get(`https://codeforces.com/api/contest.standings?contestId=${contestId}`);
     
-    // invalid contesID
-    if(contestOfficialData.data.status === "FAILED"){
-      return res.status(400).json({
-        message: "Contest not found"
-      })
-    }
     const unofficialRank = contestUnofficialData.data.result.rows.find(row => row.party.members.some(member => member.handle === codeforcesId));
     if (!unofficialRank) {
       return res.status(404).json({
@@ -77,7 +80,7 @@ router.post("/add", authmidddleware, async (req, res) => {
     let ratingChange = 0;
     if (isRatedForUser(lastRating, contestOfficialData.data.result.contest)) {
       const opponentAverageRating = await calculateAverageRating(contestId, contestOfficialData.data.result.rows, contestOfficialData.data.result.contest.name);
-      ratingChange = calculateEloRatingChange(lastRating, officialRank, contestOfficialData.data.result.rows.length, opponentAverageRating);
+      ratingChange = calculateEloRatingChange(lastRating, officialRank, contestOfficialData.data.result.rows.length, opponentAverageRating, contestOfficialData.data.result.contest.name);
     }
 
     const newRating = lastRating + ratingChange;
@@ -105,8 +108,10 @@ const isRatedForUser = (rating, contest) => {
   return true;
 };
 
-const calculateEloRatingChange = (rating, rank, totalParticipants, opponentAverageRating) => {
-  const K = 800; // max 800 inc in rating
+const calculateEloRatingChange = (rating, rank, totalParticipants, opponentAverageRating, contestName) => {
+  let K = 800; // max 800 inc in rating
+  if (contestName.includes('Div. 3')) K = 600;
+  if (contestName.includes('Div. 4')) K = 500;
   const actualScore = 1 - (rank - 1) / totalParticipants;
   const expectedScore = 1 / (1 + Math.pow(10, (opponentAverageRating - rating) / 400));
   return Math.round(K * (actualScore - expectedScore));

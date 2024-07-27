@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('./config');
 const { User } = require('./db');
 
-const authmidddleware = (req, res, next) => {
+const authmidddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if(!authHeader){
@@ -20,6 +20,12 @@ const authmidddleware = (req, res, next) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         if(decoded.userId){
             req.userId = decoded.userId;
+            const user = await User.findOne({_id:decoded.userId});
+            if(user.codeforcesId !== req.body.codeforcesId){
+                return res.status(401).json({
+                    message: "Token belongs to another user"
+                })
+            }
             next();
         }
         else{
